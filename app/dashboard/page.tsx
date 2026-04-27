@@ -1,0 +1,97 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/useAuth';
+import type { Module } from '@/lib/moduleData';
+import ModuleTile from '@/components/ModuleTile';
+import Image from 'next/image';
+
+export default function DashboardPage() {
+  const { session, loading, logout } = useAuth();
+  const [modules, setModules] = useState<Module[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/modules', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => setModules(data))
+      .catch(err => console.error('Failed to load modules:', err))
+      .finally(() => setModulesLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
+
+  return (
+    <div className="min-h-screen bg-[var(--color-charcoal)] relative">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-5" style={{
+        backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+        backgroundSize: '40px 40px',
+      }} />
+      <div className="relative z-10">
+      {/* Header */}
+      <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-6 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/images/oj-hub-logo.png"
+              alt="OuterJoin Hub"
+              width={140}
+              height={40}
+              priority
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            {session.role === 'super-admin' && (
+              <a
+                href="/admin"
+                className="text-sm text-gray-500 hover:text-[var(--color-primary)] transition-colors font-medium"
+              >
+                Admin
+              </a>
+            )}
+            <span className="text-sm text-gray-600">
+              {session.name} {session.surname}
+            </span>
+            <button
+              onClick={logout}
+              className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Welcome, {session.name}</h1>
+          <p className="text-sm text-gray-300 mt-1">Select a module to get started</p>
+        </div>
+
+        {modulesLoading ? (
+          <div className="text-gray-400 text-sm text-center py-12">Loading modules...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {modules.map(m => {
+              const hasAccess = session.role === 'super-admin' || session.modules.includes(m.slug);
+              return (
+                <ModuleTile key={m.slug} module={m} hasAccess={hasAccess} />
+              );
+            })}
+          </div>
+        )}
+      </main>
+      </div>
+    </div>
+  );
+}
